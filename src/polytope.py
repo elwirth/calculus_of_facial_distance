@@ -136,6 +136,8 @@ class Polytope:
     def convex_grid(self, step=0.1, dtype=np.float32) -> np.ndarray:
         """
         Generate a grid of points in conv(V) by sampling convex combinations.
+        NOTE: It is important to sample like this. We really want to explore convex combinations of vertices with other vertices set to
+        0 explicitly to get correct results.
         Returns: (dim, n_points)
         """
         steps = np.arange(0, 1 + step, step)
