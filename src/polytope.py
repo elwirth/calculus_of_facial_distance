@@ -132,32 +132,57 @@ class Polytope:
             max_gamma = max(max_gamma, feasible_gamma)
 
         return max_gamma
+
+    def _generate_partitions(self, k, n, current_partition, partitions):
+        """
+        Recursive helper function to generate all partitions of k into n parts.
+        """
+        if n == 1:
+            current_partition.append(k)
+            partitions.append(list(current_partition))
+            current_partition.pop()
+            return
     
-    def convex_grid(self, step=0.1, dtype=np.float32) -> np.ndarray:
+        for i in range(k + 1):
+            current_partition.append(i)
+            self._generate_partitions(k - i, n - 1, current_partition, partitions)
+            current_partition.pop()
+    
+    def convex_grid(self, num_steps: int = 10, dtype=np.float32) -> np.ndarray:
         """
         Generate a grid of points in conv(V) by sampling convex combinations.
-        NOTE: It is important to sample like this. We really want to explore convex combinations of vertices with other vertices set to
-        0 explicitly to get correct results.
-        Returns: (dim, n_points)
+        The number of steps determines the grid resolution.
+        
+        Parameters:
+        -----------
+        num_steps : int
+            The number of intervals for the grid. Each weight will be a multiple
+            of 1/num_steps.
+        
+        Returns:
+        --------
+        np.ndarray
+            (dim, n_points) array of grid points.
         """
-        steps = np.arange(0, 1 + step, step)
+        
+        partitions = []
+        self._generate_partitions(num_steps, self.n_vertices, [], partitions)
+        
         grid_points = []
-
-        for weights in product(steps, repeat=self.n_vertices):
-            weights = np.array(weights)
-            if np.isclose(weights.sum(), 1):
-                grid_points.append(self.vertices @ weights)
-
+        for p in partitions:
+            weights = np.array(p, dtype=dtype) / num_steps
+            grid_points.append(self.vertices @ weights)
+            
         return np.array(grid_points, dtype=dtype).T
 
-    def vertex_distance_grid(self, y: np.ndarray, step=0.1, epsilon=1e-6, tol=1e-8, gamma_max=1,
+    def vertex_distance_grid(self, y: np.ndarray, num_steps=10, epsilon=1e-6, tol=1e-8, gamma_max=1,
                             parallel=False, num_cores=None) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute vertex distances for all grid points in the polytope to a fixed y.
         If `parallel=True`, computations are done in parallel using `num_cores` (defaults to all cores).
         Returns: (grid_points (dim, n_points), distances (n_points,))
         """
-        grid_points = self.convex_grid(step=step)
+        grid_points = self.convex_grid(num_steps=num_steps)
 
         if parallel:
             if num_cores is None:
