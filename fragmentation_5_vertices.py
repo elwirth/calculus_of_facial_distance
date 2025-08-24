@@ -1,0 +1,43 @@
+import numpy as np
+import sys
+from pathlib import Path
+sys.path.append((str(Path.cwd() / "src")))
+from polytope import Polytope
+from plotting_utils import save_plot_and_data_simple, plot_delaunay, plot_smooth
+
+# set up the polytope, columns are vertices
+vertices = np.array([[0, 2, 1, 0, 2.5],
+                    [0, 0, 2, 2, 0.9]])
+vertices = vertices.astype(np.float32)
+poly = Polytope(vertices)
+
+num_steps = 20
+num_steps_line = 50
+
+
+y = np.array([0.0, 0.0], dtype=np.float32)
+grid, dists = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=1e-5, tol=1e-7, parallel=True, num_cores=10)
+fig = plot_smooth(grid, dists, y, title="Fragmentation distance", xlabel="x1", ylabel="x2")
+save_plot_and_data_simple(fig, vertices, y, name="fragmentation_5_vertices_vertex")
+
+
+y = np.array([0.5, 0.5], dtype=np.float32)
+grid, dists = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=1e-5, tol=1e-7, parallel=True, num_cores=10)
+fig = plot_smooth(grid, dists, y, title="Fragmentation distance", xlabel="x1", ylabel="x2")
+save_plot_and_data_simple(fig, vertices, y, name="fragmentation_5_vertices_relint_1")
+
+
+y = np.array([1.0, 1.5], dtype=np.float32)
+grid, dists = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=1e-5, tol=1e-7, parallel=True, num_cores=10)
+fig = plot_smooth(grid, dists, y, title="Fragmentation distance", xlabel="x1", ylabel="x2")
+save_plot_and_data_simple(fig, vertices, y, name="fragmentation_5_vertices_relint_2")
+
+y = np.array([1.5, 1.25], dtype=np.float32)
+grid, dists = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=1e-5, tol=1e-7, parallel=True, num_cores=10)
+fig = plot_smooth(grid, dists, y, title="Fragmentation distance", xlabel="x1", ylabel="x2")
+save_plot_and_data_simple(fig, vertices, y, name="fragmentation_5_vertices_relint_3")
+
+y = np.array([0.5, 0.0], dtype=np.float32)
+grid, dists = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=1e-5, tol=1e-7, parallel=True, num_cores=10)
+fig = plot_smooth(grid, dists, y, title="Fragmentation distance", xlabel="x1", ylabel="x2")
+save_plot_and_data_simple(fig, vertices, y, name="fragmentation_5_vertices_boundary")

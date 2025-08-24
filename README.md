@@ -1,6 +1,9 @@
 # Calculus of Facial Distance
 
-This repository has been developped to explore facial distances and vertex distances over polytopes. 
+This repository has been developped to explore facial distances and vertex distances over polytopes.
+At the moment:
+* Supports computation of vertex distances in a polytope with respect to an anchor point y.
+* Supports computation of fragmentation in a polytope with respect to an anchor point y.
 
 ---
 
@@ -22,6 +25,9 @@ This repository has been developped to explore facial distances and vertex dista
 4. Run the following code:
     ```bash
     python boolean_hypercube.py
+    python 5_vertices.py
+    python fragmentation_boolean_hypercube.py
+    python fragmentation_5_vertices.py
     ```
     This creates results in `results`.
 
@@ -29,7 +35,6 @@ This repository has been developped to explore facial distances and vertex dista
 
 ```
 .
-├── boolean_hypercube.py        # Main example script
 ├── src/
 │   ├── plotting_utils.py       # Plotting helper functions
 │   └── polytope.py             # Polytope computations

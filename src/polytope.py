@@ -101,9 +101,9 @@ class Polytope:
                 maximal_sets.append(S)
         return maximal_sets
 
-    def vertex_distance(self, x: np.ndarray, y: np.ndarray, epsilon=1e-6, tol=1e-8, gamma_max=1, max_iter=50):
+    def vertex_distance(self, x: np.ndarray, y: np.ndarray, epsilon: float = 1e-6, tol: float = 1e-8, gamma_max: float = 1.0, max_iter=50):
         """
-        Compute the vertex distance ν(y, x) = max_{S in S(x)} min { γ ≥ 0 : γ feasible for S }.
+        Compute the vertex distance v(y, x) = max_{S in S(x)} min { gamma ≥ 0 : gamma feasible for S }.
         """
         if np.allclose(x, y):
             return 0.0
@@ -147,10 +147,10 @@ class Polytope:
             current_partition.append(i)
             self._generate_partitions(k - i, n - 1, current_partition, partitions)
             current_partition.pop()
-    
+
     def convex_grid(self, num_steps: int = 10, dtype=np.float32) -> np.ndarray:
         """
-        Generate a grid of points in conv(V) by sampling convex combinations.
+        Generate a grid of points in conv(V) by generating evenly spaced convex combinations.
         The number of steps determines the grid resolution.
         
         Parameters:
@@ -174,26 +174,168 @@ class Polytope:
             grid_points.append(self.vertices @ weights)
             
         return np.array(grid_points, dtype=dtype).T
+    
+    def _generate_partitions_2_nonzero(self, k, n):
+        """
+        Generates partitions of k into n parts with at most two non-zero entries.
+        
+        Parameters:
+        k : int, the total sum (e.g., num_steps).
+        n : int, the number of parts (e.g., n_vertices).
+        
+        Returns:
+        list of lists, where each inner list is a partition.
+        """
+        if n < 2:
+            return []
 
-    def vertex_distance_grid(self, y: np.ndarray, num_steps=10, epsilon=1e-6, tol=1e-8, gamma_max=1,
-                            parallel=False, num_cores=None) -> tuple[np.ndarray, np.ndarray]:
+        partitions = set()
+
+        for i, j in combinations(range(n), 2):
+            for val1 in range(0, k+1):
+                val2 = k - val1
+                partition = [0] * n
+                partition[i] = val1
+                partition[j] = val2
+                partitions.add(tuple(partition))
+
+        return [list(p) for p in partitions]
+    
+    def pairwise_grid(self, num_steps: int = 10, dtype=np.float32) -> np.ndarray:
+        """
+        Generate a grid of convex combinations of pairs of vertices of the polytope evenly spaced convex combinations.
+        The number of steps determines the grid resolution.
+        
+        Parameters:
+        -----------
+        num_steps : int
+            The number of intervals for the grid. Each weight will be a multiple
+            of 1/num_steps.
+        
+        Returns:
+        --------
+        np.ndarray
+            (dim, n_points) array of grid points.
+        """
+        partitions = self._generate_partitions_2_nonzero(num_steps, self.n_vertices)
+
+        grid_points = []
+        for p in partitions:
+            weights = np.array(p, dtype=dtype) / num_steps
+            grid_points.append(self.vertices @ weights)
+            
+        return np.array(grid_points, dtype=dtype).T
+    
+
+    def vertex_distance_grid(self, y: np.ndarray, num_steps: int = 10, epsilon: float = 1e-6, tol: float = 1e-8, gamma_max: float = 1.0,
+                            parallel: bool = False, num_cores: int = None) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute vertex distances for all grid points in the polytope to a fixed y.
         If `parallel=True`, computations are done in parallel using `num_cores` (defaults to all cores).
-        Returns: (grid_points (dim, n_points), distances (n_points,))
+        Returns: (grid_points (dim, n_points), vertex_distances (n_points,))
         """
         grid_points = self.convex_grid(num_steps=num_steps)
 
         if parallel:
             if num_cores is None:
                 num_cores = multiprocessing.cpu_count()
-            distances = Parallel(n_jobs=num_cores)(
+            vertex_distances = Parallel(n_jobs=num_cores)(
                 delayed(self.vertex_distance)(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
                 for x in grid_points.T
             )
-            distances = np.array(distances)
+            vertex_distances = np.array(vertex_distances)
         else:
-            distances = np.array([self.vertex_distance(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
+            vertex_distances = np.array([self.vertex_distance(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
                                 for x in grid_points.T])
 
-        return grid_points, distances
+        return grid_points, vertex_distances
+    
+    def create_line_grid(self, start_vector: np.ndarray, end_vector: np.ndarray,
+                         num_steps_line: int = 100, dtype=np.float32) -> np.ndarray:
+        """
+        Given a start_vector and end_vector, creates an array whose columns consist of num_steps_line evenly spaced vectors from
+        start_vector to end_vector, including start_vector and end_vector.
+        """
+        
+        step_length = np.linspace(0, 1, num_steps_line)
+        difference_vector = end_vector - start_vector
+        grid = start_vector + np.outer(step_length, difference_vector)
+        grid = grid.astype(dtype)
+        assert grid.shape[0] == num_steps_line, "Number of points along the line mismatch"
+        return grid.T
+
+    def fragmentation_grid(self, y: np.ndarray, num_steps: int = 10, epsilon: float = 1e-6, tol: float = 1e-8, gamma_max: float = 1.0, num_steps_line: int = 1000, parallel: bool = False, num_cores: int = None) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Computes fragmentation on a grid. We first set up  a grid over all pairwise combinations of vertices of the polytope. From there, we set up a very fine 
+        grid between y and of the elements of the pairwise grid, called end_point. For this line, we compute all vertex distances. This we then use to get frag-
+        mentations.
+
+        Parameters
+        ----------
+        y : np.ndarray
+            The point from which fragmentation is computed.
+        num_steps : int
+            The number of steps for the pairwise grid.
+        epsilon : float
+            A small positive value for the support set oracle.
+        tol : float
+            Tolerance for the bisection search in vertex distance calculation.
+        gamma_max : float
+            Maximum value for gamma in vertex distance calculation.
+        num_steps_line : int
+            The number of points to sample on each line segment.
+        parallel : bool
+            If true, uses multiprocessing to parallelize the vertex distance calculations.
+        num_cores : int, optional
+            The number of cores to use for parallel execution. Defaults to all available cores.
+
+        """
+        
+        proportional_t = np.zeros((num_steps_line, num_steps_line))
+        for i in range(1, num_steps_line):
+            proportional_t[i, :i+1] = np.linspace(0, 1, i + 1)
+            
+        pairwise_grid = self.pairwise_grid(num_steps=num_steps)
+
+        grid = []
+        fragmentations = []
+        for i, end_vector in enumerate(pairwise_grid.T):
+            print(f"Working on end_vector {i+1} of {pairwise_grid.shape[1]}.")
+            line_grid = self.create_line_grid(y, end_vector, num_steps_line=num_steps_line)
+            if parallel:
+                if num_cores is None:
+                    num_cores = multiprocessing.cpu_count()
+                vertex_distances = Parallel(n_jobs=num_cores)(
+                    delayed(self.vertex_distance)(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
+                    for x in line_grid.T
+                )
+                vertex_distances = np.array(vertex_distances)
+            else:
+                vertex_distances = np.array([self.vertex_distance(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
+                                    for x in line_grid.T])
+
+            vertex_distances_row = vertex_distances[np.newaxis, :]
+            vertex_distances_matrix = np.repeat(vertex_distances_row, num_steps_line, axis=0)
+            mask = (proportional_t != 0)
+            log_ratios = np.full_like(proportional_t, -np.inf, dtype=float)  # -inf where t=0
+            log_ratios[mask] = np.log(vertex_distances_matrix[mask]) - np.log(proportional_t[mask])
+
+            # max in log-space
+            fragmentation_values_on_line = np.max(log_ratios, axis=1)
+            fragmentation_values_on_line = np.exp(fragmentation_values_on_line)
+            
+            # we have to remove points that do not have a lot of other points between them and y
+            fragmentation_values_on_line = np.concatenate((
+            fragmentation_values_on_line[:1],
+            fragmentation_values_on_line[4:]
+            ))
+            line_grid = np.concatenate((
+                line_grid[:, :1],
+                line_grid[:, 4:]
+            ), axis=1)
+
+            grid.append(line_grid)
+            fragmentations.append(fragmentation_values_on_line)
+        grid = np.hstack(grid)
+        fragmentations = np.hstack(fragmentations)
+        return grid, fragmentations
