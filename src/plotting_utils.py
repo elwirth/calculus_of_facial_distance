@@ -2,12 +2,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 import numpy as np
-from itertools import product
 from scipy.interpolate import griddata
 import os
 
 
-def plot_smooth(grid_points: np.ndarray, distances: np.ndarray, y: np.ndarray, resolution=100, offset: float = 0.1,
+def plot_smooth(grid_points: np.ndarray, distances: np.ndarray, y: np.ndarray, resolution=1250, offset: float = 0.1,
                 title: str | None = None, xlabel: str | None = None, ylabel: str | None = None) -> plt.Figure:
     if grid_points.shape[0] != 2:
         raise ValueError("Plotting only supported for 2D polytopes.")
@@ -17,14 +16,13 @@ def plot_smooth(grid_points: np.ndarray, distances: np.ndarray, y: np.ndarray, r
     XI, YI = np.meshgrid(xi, yi)
     
     ZI = griddata(grid_points.T, distances, (XI, YI), method='linear')
-    
     fig, ax = plt.subplots(figsize=(6, 5))
     
     finite_vals = ZI[np.isfinite(ZI)]
     min_val = finite_vals.min()
     max_val = finite_vals.max()
     
-    cf = ax.contourf(XI, YI, ZI, levels=np.linspace(min_val, max_val, 250), cmap='viridis')
+    cf = ax.contourf(XI, YI, ZI, levels=np.linspace(min_val, max_val, 500), cmap='viridis')
     
     legend_title = f"{title} to y" if title else "Vertex distance to y"
     cbar = plt.colorbar(cf, ax=ax, label=legend_title, ticks=np.linspace(min_val, max_val, 5))
@@ -51,7 +49,7 @@ def plot_delaunay(grid_points: np.ndarray, distances: np.ndarray, y: np.ndarray,
     min_val = finite_vals.min()
     max_val = finite_vals.max()
     
-    cf = ax.tricontourf(triang, distances, levels=np.linspace(min_val, max_val, 250), cmap='viridis')
+    cf = ax.tricontourf(triang, distances, levels=np.linspace(min_val, max_val, 500), cmap='viridis')
     
     legend_title = f"{title} to y" if title else "Vertex distance to y"
     cbar = plt.colorbar(cf, ax=ax, label=legend_title, ticks=np.linspace(min_val, max_val, 5))
@@ -86,9 +84,8 @@ def save_plot_and_data_simple(fig: plt.Figure, vertices: np.ndarray, y: np.ndarr
     name : str
         Base name for saving files.
     """
-
+    print(f"Plotting {name}.")
     os.makedirs("results", exist_ok=True)
-    
     # Save figure
     fig_path = os.path.join("results", f"{name}.png")
     fig.savefig(fig_path, dpi=300)
