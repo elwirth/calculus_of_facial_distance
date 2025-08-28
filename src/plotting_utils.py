@@ -24,7 +24,7 @@ def plot_smooth(grid_points: np.ndarray, distances: np.ndarray, y: np.ndarray, r
     
     cf = ax.contourf(XI, YI, ZI, levels=np.linspace(min_val, max_val, 500), cmap='viridis')
     
-    legend_title = f"{title} to y" if title else "Vertex distance to y"
+    legend_title = f"{title} to y" if title else "Distance to y"
     cbar = plt.colorbar(cf, ax=ax, label=legend_title, ticks=np.linspace(min_val, max_val, 5))
     
     ax.scatter(y[0], y[1], color='red', marker='x', s=100, label='y')
@@ -51,7 +51,7 @@ def plot_delaunay(grid_points: np.ndarray, distances: np.ndarray, y: np.ndarray,
     
     cf = ax.tricontourf(triang, distances, levels=np.linspace(min_val, max_val, 500), cmap='viridis')
     
-    legend_title = f"{title} to y" if title else "Vertex distance to y"
+    legend_title = f"{title} to y" if title else "Distance to y"
     cbar = plt.colorbar(cf, ax=ax, label=legend_title, ticks=np.linspace(min_val, max_val, 5))
     
     x_min, x_max = grid_points[0].min(), grid_points[0].max()

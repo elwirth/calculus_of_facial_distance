@@ -264,7 +264,9 @@ class Polytope:
         assert grid.shape[0] == num_steps_line, "Number of points along the line mismatch"
         return grid.T
 
-    def fragmentation_grid(self, y: np.ndarray, num_steps: int = 10, epsilon: float = 1e-6, tol: float = 1e-8, gamma_max: float = 1.0, num_steps_line: int = 1000, parallel: bool = False, num_cores: int = None) -> tuple[np.ndarray, np.ndarray]:
+    def fragmentation_grid(self, y: np.ndarray, num_steps: int = 10, epsilon: float = 1e-6, tol: float = 1e-8,
+                           gamma_max: float = 1.0, num_steps_line: int = 1000,
+                           parallel: bool = False, num_cores: int = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Computes fragmentation on a grid. We first set up  a grid over all pairwise combinations of vertices of the polytope. From there, we set up a very fine 
         grid between y and of the elements of the pairwise grid, called end_point. For this line, we compute all vertex distances. This we then use to get frag-
@@ -289,6 +291,16 @@ class Polytope:
         num_cores : int, optional
             The number of cores to use for parallel execution. Defaults to all available cores.
 
+            Computes fragmentation on a grid. Also returns the raw vertex distances.
+
+        Returns
+        -------
+        grid : np.ndarray
+            (dim, n_points) array of sampled grid points.
+        fragmentations : np.ndarray
+            (n_points,) array of fragmentation values.
+        vertex_distances : np.ndarray
+            (n_points,) array of vertex distances for the same grid points.
         """
         
         proportional_t = np.zeros((num_steps_line, num_steps_line))
@@ -299,22 +311,24 @@ class Polytope:
 
         grid = []
         fragmentations = []
+        vertex_distances = []
+
         for i, end_vector in enumerate(pairwise_grid.T):
             print(f"Working on end_vector {i+1} of {pairwise_grid.shape[1]}.")
             line_grid = self.create_line_grid(y, end_vector, num_steps_line=num_steps_line)
             if parallel:
                 if num_cores is None:
                     num_cores = multiprocessing.cpu_count()
-                vertex_distances = Parallel(n_jobs=num_cores)(
+                vertex_distances_line_grid = Parallel(n_jobs=num_cores)(
                     delayed(self.vertex_distance)(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
                     for x in line_grid.T
                 )
-                vertex_distances = np.array(vertex_distances)
+                vertex_distances_line_grid = np.array(vertex_distances_line_grid)
             else:
-                vertex_distances = np.array([self.vertex_distance(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
+                vertex_distances_line_grid = np.array([self.vertex_distance(x, y, epsilon=epsilon, tol=tol, gamma_max=gamma_max)
                                     for x in line_grid.T])
 
-            vertex_distances_row = vertex_distances[np.newaxis, :]
+            vertex_distances_row = vertex_distances_line_grid[np.newaxis, :]
             vertex_distances_matrix = np.repeat(vertex_distances_row, num_steps_line, axis=0)
             mask = (proportional_t != 0)
             log_ratios = np.full_like(proportional_t, -np.inf, dtype=float)  # -inf where t=0
@@ -333,9 +347,17 @@ class Polytope:
                 line_grid[:, :1],
                 line_grid[:, 4:]
             ), axis=1)
+            vertex_distances_line_grid = np.concatenate((
+            vertex_distances_line_grid[:1],
+            vertex_distances_line_grid[4:]
+        ))
+
 
             grid.append(line_grid)
             fragmentations.append(fragmentation_values_on_line)
+            vertex_distances.append(vertex_distances_line_grid)
+
         grid = np.hstack(grid)
         fragmentations = np.hstack(fragmentations)
-        return grid, fragmentations
+        vertex_distances = np.hstack(vertex_distances)
+        return grid, fragmentations, vertex_distances

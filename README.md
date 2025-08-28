@@ -24,10 +24,7 @@ At the moment:
     ```
 4. Run the following code:
     ```bash
-    python boolean_hypercube.py
-    python 5_vertices.py
-    python fragmentation_boolean_hypercube.py
-    python fragmentation_5_vertices.py
+    ./run_all.sh
     ```
     This creates results in `results`.
 
