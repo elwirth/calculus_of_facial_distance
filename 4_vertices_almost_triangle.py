@@ -21,9 +21,9 @@ tol = 1e-7
 y = np.array([0.75, 5.5], dtype=np.float32)
 grid, frag_dists, vert_dists  = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=epsilon, tol=tol, parallel=True, num_cores=num_cores)
 fig = plot_smooth(grid, frag_dists, y, title="Fragmentation distance", xlabel="x1", ylabel="x2")
-save_plot_and_data_simple(fig, vertices, y, name="fragmentation_distance_4_vertices_almost_triangle_vertex_2")
+save_plot_and_data_simple(fig, vertices, y, name="fragmentation_distance_4_vertices_almost_triangle_vertex_3")
 fig = plot_smooth(grid, vert_dists, y, title="Vertex distance", xlabel="x1", ylabel="x2")
-save_plot_and_data_simple(fig, vertices, y, name="vertex_distance_4_vertices_almost_triangle_vertex_2")
+save_plot_and_data_simple(fig, vertices, y, name="vertex_distance_4_vertices_almost_triangle_vertex_3")
 
 y = np.array([0.0, 0.0], dtype=np.float32)
 grid, frag_dists, vert_dists  = poly.fragmentation_grid(y, num_steps=num_steps, num_steps_line=num_steps_line, epsilon=epsilon, tol=tol, parallel=True, num_cores=num_cores)
